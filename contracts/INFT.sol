@@ -12,5 +12,7 @@ interface INFT {
      * Returns the tokenId
      * Emits a Mint event
      */
-    function mintAMD(address) external;
+    function mintAMD(address) external returns(uint16);
+
+    event MintedAMD(address indexed to, uint16 tokenId);
 }

@@ -34,16 +34,22 @@ describe('AlphaGovernor', function () {
     before(async function () {
         [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
         
-        this.NFT           = await ethers.getContractFactory("NFT");
+        this.NFT           = new ethers.ContractFactory(nftabi, nftbytecode, owner);
         this.TIMELOCK      = new ethers.ContractFactory(timeabi, timebytecode, owner);
         this.AlphaGovernor = new ethers.ContractFactory(govabi, govbytecode, owner);
-    });
 
-    beforeEach(async function () {
-        console.log(`Main signer: ${owner.address}`);
         this.nft = await this.NFT.deploy();
         this.timelock = await this.TIMELOCK.deploy();
         this.governor = await this.AlphaGovernor.deploy(this.nft.address, this.timelock.address);
+
+        const nftABI = new ethers.utils.Interface(nftabi);
+        const timeABI = new ethers.utils.Interface(timeabi);
+        const govABI = new ethers.utils.Interface(govabi);
+    });
+
+    beforeEach(async function () {
+        //console.log(`Main signer: ${owner.address}`);
+        
 
     });
 
@@ -53,8 +59,9 @@ describe('AlphaGovernor', function () {
     //       Constructor 
     //////////////////////////////
     describe("Deployment", function () {
-        it('Deploys the NFT Contract', async function () {
+        it(`Deploys the NFT Contract`, async function () {
             await this.nft.deployed();
+            //console.log(this.nft.address)
         });
         it('Deploys the TIMELOCK Contract', async function () {
             await this.timelock.deployed();
@@ -69,11 +76,35 @@ describe('AlphaGovernor', function () {
             await this.nft.mintAMD(owner.address);
             expect(await this.nft.balanceOf(owner.address)).to.equal(1);
         });
+
+        it('gives you ownership of the NFT', async function () {
+            const nftABI = new ethers.utils.Interface(nftabi);
+
+
+            // This will be the second nft minted by the ERC721 contract
+            const minttx = await this.nft.mintAMD(owner.address);
+            
+
+            // I made an event and then just waited for the event to be broadcast to find tokenId.
+            // You can also take the transaction hash immediately after sending the wait for the block
+            // to be mined and executed to find the Id then
+
+            const [...events] = await this.nft.queryFilter("MintedAMD");
+            expect(
+                events[events.length-1].args[1] // Fetch most recent tx that matches 'MintedAMD'
+                ).to.equal(2)
+        });
+
+        it(`Allows you to delegate your vote to yourself`, async function () {
+            await this.nft.mintAMD(owner.address);
+            await this.nft.delegate(owner.address);
+            expect(await this.nft.delegates(owner.address)).to.equal(owner.address)
+        })
     });
 
     //////////////////////////////
     //  setRemainderDestination 
-    //////////////////////////////
+    ////////////////////////////// 0x6352211e0000000000000000000000000000000000000000000000000000000000000003
     /*
     describe("otherMethod", function () {
 

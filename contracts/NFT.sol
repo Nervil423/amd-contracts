@@ -24,17 +24,19 @@ contract NFT is ERC721, Ownable, ERC721Votes, INFT {
     constructor() 
         EIP712("Alpha Mecha DAO", "1.0.0")
         ERC721("AlphaMechaDAO", "AMD") {
+            Counters.reset(_tokenIds);
     }
 
     // commented out unused variable
     // function awardItem(address player, string memory tokenURI)
-    function mintAMD(address player) external override {
+    function mintAMD(address player) external override returns(uint16 tokenID) {
         _tokenIds.increment();
 
-        uint256 newItemId = _tokenIds.current();
+        uint16 newItemId = uint16(_tokenIds.current());
         _mint(player, newItemId);
+        emit MintedAMD(player, newItemId);
         // _setTokenURI(newItemId, tokenURI);
-
+        return newItemId;
     }
 
     function _afterTokenTransfer(address from, address to, uint256 tokenId) internal virtual override(ERC721Votes, ERC721) {
