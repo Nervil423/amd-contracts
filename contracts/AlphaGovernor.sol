@@ -7,24 +7,45 @@ import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 
-contract AlphaGovernor is Governor, GovernorVotes, GovernorVotesQuorumFraction, GovernorTimelockControl, GovernorSettings {
-    constructor(IVotes _token, TimelockController _timelock) 
+contract AlphaGovernor is
+    Governor,
+    GovernorVotes,
+    GovernorVotesQuorumFraction,
+    GovernorTimelockControl,
+    GovernorSettings
+{
+    constructor(IVotes _token, TimelockController _timelock)
         Governor("AlphaGovernor")
-        GovernorSettings(1 , 45818, 0)
+        GovernorSettings(1, 45818, 0)
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4)
         GovernorTimelockControl(_timelock)
     {}
 
-    function votingDelay() public view override(GovernorSettings, IGovernor) returns (uint256) {
+    function votingDelay()
+        public
+        view
+        override(GovernorSettings, IGovernor)
+        returns (uint256)
+    {
         return super.votingDelay(); // 1 day
     }
 
-    function votingPeriod() public view override(GovernorSettings, IGovernor) returns (uint256) {
+    function votingPeriod()
+        public
+        view
+        override(GovernorSettings, IGovernor)
+        returns (uint256)
+    {
         return super.votingPeriod(); // 1 week
     }
 
-    function proposalThreshold() public view override(Governor, GovernorSettings) returns (uint256) {
+    function proposalThreshold()
+        public
+        view
+        override(Governor, GovernorSettings)
+        returns (uint256)
+    {
         return super.proposalThreshold();
     }
 
@@ -39,13 +60,20 @@ contract AlphaGovernor is Governor, GovernorVotes, GovernorVotesQuorumFraction, 
         return super.quorum(blockNumber);
     }
 
-    function getVotes(address account, uint256 blockNumber)
-        public
+    function getVotes(address account, uint256 blockNumber) public view override(IGovernor, GovernorVotes) returns (uint256 votes) {
+        return _getPastVotes(account, blockNumber);
+    }
+
+    function _getPastVotes(address account, uint256 blockNumber)
+        internal
         view
-        override(IGovernor, GovernorVotes)
-        returns (uint256)
+        returns (uint256 votes)
     {
-        return super.getVotes(account, blockNumber);
+        return token.getPastVotes(account, blockNumber);
+    }
+
+    function getCurrentVotes(address account) public view returns (uint256 votes) {
+        return token.getVotes(account);
     }
 
     function state(uint256 proposalId)
@@ -57,74 +85,76 @@ contract AlphaGovernor is Governor, GovernorVotes, GovernorVotesQuorumFraction, 
         return super.state(proposalId);
     }
 
-    function propose(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description)
-        public
-        override(Governor, IGovernor)
-        returns (uint256)
-    {
+    function propose(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        string memory description
+    ) public override(Governor, IGovernor) returns (uint256) {
         return super.propose(targets, values, calldatas, description);
     }
 
-    function COUNTING_MODE() public pure override virtual returns (string memory) {
+    function COUNTING_MODE()
+        public
+        pure
+        virtual
+        override
+        returns (string memory)
+    {
         return "support=bravo";
     }
 
-    function _execute(uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash)
-        internal
-        override(Governor, GovernorTimelockControl)
-    {
+    function _execute(
+        uint256 proposalId,
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    ) internal override(Governor, GovernorTimelockControl) {
         super._execute(proposalId, targets, values, calldatas, descriptionHash);
     }
 
     /*
-    *         IMPLEMENT
-    *
-    */
-    function _countVote(uint256 proposalId, address account, uint8 support, uint256 weight) 
-        internal 
-        virtual 
-        override 
-    {
+     *         IMPLEMENT
+     *
+     */
+    function _countVote(
+        uint256 proposalId,
+        address account,
+        uint8 support,
+        uint256 weight
+    ) internal virtual override {}
 
-    }
-
-    function _quorumReached(uint256 proposalId) 
-        internal 
-        view 
-        virtual 
-        override 
-        returns (bool)
-    {
-
-    }
-
-    function _voteSucceeded(uint256 proposalId) 
-        internal 
-        view 
-        virtual 
-        override 
-        returns (bool)
-    {
-
-    }
-
-    function hasVoted(uint256 proposalId, address account) 
-        public 
-        view 
-        virtual 
-        override 
-        returns (bool)
-    {
-
-    }
-
-
-
-    function _cancel(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash)
+    function _quorumReached(uint256 proposalId)
         internal
-        override(Governor, GovernorTimelockControl)
-        returns (uint256)
-    {
+        view
+        virtual
+        override
+        returns (bool)
+    {}
+
+    function _voteSucceeded(uint256 proposalId)
+        internal
+        view
+        virtual
+        override
+        returns (bool)
+    {}
+
+    function hasVoted(uint256 proposalId, address account)
+        public
+        view
+        virtual
+        override
+        returns (bool)
+    {}
+
+    function _cancel(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    ) internal override(Governor, GovernorTimelockControl) returns (uint256) {
         return super._cancel(targets, values, calldatas, descriptionHash);
     }
 

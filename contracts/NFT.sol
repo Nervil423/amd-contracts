@@ -17,7 +17,8 @@ contract NFT is ERC721, Ownable, ERC721Votes, INFT {
     
     bool isMintLive = false;
     Counters.Counter private _tokenIds;
-    uint8 constant MAX_MINT_TX = 1;
+
+    uint256 public constant MECHA_PRICE = 3000000000000000000; // 3 AVAX 
     
 
 
@@ -29,18 +30,23 @@ contract NFT is ERC721, Ownable, ERC721Votes, INFT {
 
     // commented out unused variable
     // function awardItem(address player, string memory tokenURI)
-    function mintAMD(address player) external override returns(uint16 tokenID) {
+    function mintAMD() external payable override returns(uint16 tokenID) {
+        require(msg.value >= MECHA_PRICE, "Avalanche value sent is incorrect");
+
         _tokenIds.increment();
 
         uint16 newItemId = uint16(_tokenIds.current());
-        _mint(player, newItemId);
-        emit MintedAMD(player, newItemId);
+        _mint(msg.sender, newItemId);
+        emit MintedAMD(msg.sender, newItemId);
+
+        _afterTokenTransfer(address(0), msg.sender, newItemId);
+        delegate(msg.sender);
         // _setTokenURI(newItemId, tokenURI);
         return newItemId;
     }
 
     function _afterTokenTransfer(address from, address to, uint256 tokenId) internal virtual override(ERC721Votes, ERC721) {
-
+        
     }
     
 }
