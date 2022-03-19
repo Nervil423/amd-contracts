@@ -14,6 +14,21 @@ contract AlphaGovernor is
     GovernorTimelockControl,
     GovernorSettings
 {
+    //   proposalId => Votes
+    mapping(uint256 => uint256) private _proposalTotalVotes;
+    mapping(uint256 => uint256) private _proposalYesVotes;
+    mapping(uint256 => uint256) private _proposalNoVotes;
+    mapping(uint256 => uint256) private _proposalAbstainVotes;
+
+    mapping(address => Voter) private _voter;
+
+    struct Voter {
+        //    ProposalId
+        mapping(uint256 => bool) hasVoted;
+        mapping(uint256 => uint256) votesOnProposal;
+        mapping(uint256 => uint256) voteSupport;
+    }
+
     constructor(IVotes _token, TimelockController _timelock)
         Governor("AlphaGovernor")
         GovernorSettings(1, 45818, 0)
@@ -60,7 +75,12 @@ contract AlphaGovernor is
         return super.quorum(blockNumber);
     }
 
-    function getVotes(address account, uint256 blockNumber) public view override(IGovernor, GovernorVotes) returns (uint256 votes) {
+    function getVotes(address account, uint256 blockNumber)
+        public
+        view
+        override(IGovernor, GovernorVotes)
+        returns (uint256 votes)
+    {
         return _getPastVotes(account, blockNumber);
     }
 
@@ -72,7 +92,11 @@ contract AlphaGovernor is
         return token.getPastVotes(account, blockNumber);
     }
 
-    function getCurrentVotes(address account) public view returns (uint256 votes) {
+    function getCurrentVotes(address account)
+        public
+        view
+        returns (uint256 votes)
+    {
         return token.getVotes(account);
     }
 
@@ -118,12 +142,69 @@ contract AlphaGovernor is
      *         IMPLEMENT
      *
      */
+
+    function proposalVotes(uint256 proposalId)
+        public
+        view
+        returns (
+            uint256 totalVotes,
+            uint256 yesVotes,
+            uint256 noVotes,
+            uint256 abstainVotes
+        )
+    {
+        return (
+            _proposalTotalVotes[proposalId],
+            _proposalYesVotes[proposalId],
+            _proposalNoVotes[proposalId],
+            _proposalAbstainVotes[proposalId]
+        );
+    }
+
     function _countVote(
         uint256 proposalId,
         address account,
         uint8 support,
         uint256 weight
-    ) internal virtual override {}
+    ) internal virtual override {
+        require(support == 0 || support == 1 || support == 2, "Invalid support type");
+        require(weight > 0, "Must have weight behind vote");
+
+        // Changing Vote
+        if (_voter[account].hasVoted[proposalId]) {
+            if        (_voter[account].voteSupport[proposalId] == 0) {
+                _proposalYesVotes[proposalId] -= weight;
+            } else if (_voter[account].voteSupport[proposalId] == 1) {
+                _proposalNoVotes[proposalId] -= weight;
+            } else if (_voter[account].voteSupport[proposalId] == 2) {
+                _proposalAbstainVotes[proposalId] -= weight;
+            }
+            _proposalTotalVotes[proposalId] -= weight;
+        }
+
+        // Voted Yes
+        if (support == 0) {
+            _proposalTotalVotes[proposalId] += weight;
+            _proposalYesVotes[proposalId] += weight;
+            _voter[account].voteSupport[proposalId] = 0;
+        }
+        // Voted No
+        else if (support == 1) {
+            _proposalTotalVotes[proposalId] += weight;
+            _proposalNoVotes[proposalId] += weight;
+            _voter[account].voteSupport[proposalId] = 1;
+        }
+        // Abstained from Voting
+        else if (support == 2) {
+            _proposalTotalVotes[proposalId] += weight;
+            _proposalAbstainVotes[proposalId] += weight;
+            _voter[account].voteSupport[proposalId] = 2;
+        }
+
+        _voter[account].votesOnProposal[proposalId] += weight;
+        _voter[account].hasVoted[proposalId] = true;
+        _voter[account].votesOnProposal[proposalId] = weight;
+    }
 
     function _quorumReached(uint256 proposalId)
         internal

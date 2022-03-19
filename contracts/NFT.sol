@@ -45,6 +45,8 @@ contract NFT is ERC721, Ownable, ERC721Votes, INFT {
         return newItemId;
     }
 
+    
+
     function _afterTokenTransfer(address from, address to, uint256 tokenId) internal virtual override(ERC721Votes, ERC721) {
         
     }

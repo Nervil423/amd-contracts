@@ -24,6 +24,18 @@ const AMT = 150;
 // WITH MOCK CONTRACT
 ///////////////////////////////////////////////////////////
 
+async function calculateGasFee(tx, methodName) {
+    const gasPrice = 470000000000;
+    const weiPerAvax = Number('1000000000000000000');
+
+    const txReceipt = await tx.wait();
+    const gasUsed = txReceipt.gasUsed.toString()
+    const avax = gasUsed * gasPrice / weiPerAvax;
+    console.log(methodName, "gas used:", gasUsed);
+    console.log(methodName, "AVAX cost:", avax);
+}
+
+
 // Start test block
 describe('AlphaGovernor', function () {
     let owner;
@@ -54,12 +66,23 @@ describe('AlphaGovernor', function () {
 
     });
 
+    let newBlock = async function (nftcontract, signer) {
+        let overrides = {
+            value: ethers.utils.parseEther("3.0")
+        }
+        
+        await nftcontract.connect(signer).mintAMD(overrides);
+    }
+
     // Test cases
 
     //////////////////////////////
     //       Constructor 
     //////////////////////////////
     describe("Deployment", function () {
+        afterEach(async function () {
+            //console.log(await provider.getBlockNumber())
+        })
         it(`Deploys the NFT Contract`, async function () {
             await this.nft.deployed();
             //console.log(this.nft.address)
@@ -73,12 +96,9 @@ describe('AlphaGovernor', function () {
     });
 
     describe("NFT", function () {
-        afterEach(async function() {
-            //console.log(ethers.utils.formatUnits((await owner.getBalance()).toString()));
-        });
-
-
-
+        afterEach(async function () {
+            //console.log(await provider.getBlockNumber())
+        })
         it(`Fails if not enough money sent`, async function () {
             let overrides = {
                 value: ethers.utils.parseEther("2.5")
@@ -106,40 +126,20 @@ describe('AlphaGovernor', function () {
             // Could be faster?
 
             const [...events] = await this.nft.queryFilter("MintedAMD");
-            expect(await this.nft.ownerOf(events[events.length - 1].args[1])).to.equal(owner.address);
+            expect(await this.nft.ownerOf(events[events.length - 1].args.tokenId)).to.equal(owner.address);
+        });
+
+        it('Vote delegated after minting', async function () {
+            expect(await this.governor.getCurrentVotes(owner.address)).to.equal(1);
         });
         
 
 
     });
     describe("Delegating", function () {
-        const display = 0;
-        // Just to check stuff
-        before(async function () {
-            if (display) {
-                console.log("Before");
-                console.log({
-                    Owner: owner.address,
-                    OwnerNFTcnt: (await this.nft.balanceOf(owner.address)).toString(),
-                    OwnerGovVotes: (await this.governor.getCurrentVotes(owner.address)).toString(),
-                    OwnerNFTVotes: (await this.nft.getVotes(owner.address)).toString(),
-                    OwnerDelegatedVotesTo: await this.nft.delegates(owner.address)
-                })
-            }
-        });
         afterEach(async function () {
-            if (display) {
-                console.log({
-                    Owner: owner.address,
-                    OwnerNFTcnt: (await this.nft.balanceOf(owner.address)).toString(),
-                    OwnerGovVotes: (await this.governor.getCurrentVotes(owner.address)).toString(),
-                    OwnerNFTVotes: (await this.nft.getVotes(owner.address)).toString(),
-                    OwnerDelegatedVotesTo: await this.nft.delegates(owner.address)
-                })
-            }
-        });
-        
-        
+            //console.log(await provider.getBlockNumber())
+        })
         it('NFT holder has 1 vote', async function () {
             expect(await this.governor.getCurrentVotes(owner.address)).to.equal(1);
         });
@@ -158,35 +158,73 @@ describe('AlphaGovernor', function () {
             }
             await this.nft.connect(addr1).mintAMD(overrides);
             expect(await this.governor.getCurrentVotes(addr1.address)).to.equal(2);
+        });
+        it('Redelegating works', async function () {
+            await this.nft.delegate(owner.address);
+            expect(await this.governor.getCurrentVotes(owner.address)).to.equal(await this.governor.getCurrentVotes(addr1.address))
         })
 
+        after(async function () {
+
+        });
+    });
+
+    describe("Proposals", function () {
+
         /*
-        it(`Delegate voting power to yourself`, async function () {
-            await this.nft.delegate(owner.address);
-            expect(await this.nft.delegates(owner.address)).to.equal(owner.address)
-        });
-        
+         * Known vulnerability with different vote viewing mechanisms
+         * I worked around the Checkpoints library with block number on the Votes.sol library
+         * Need to make that align with the governor contract for it to be fully secure
+         */
+        it("Creates a proposal", async function () {
+            // Proposal will make the governor mint an NFT
 
-        it(`Returns delegate back to yourself`, async function () {
-            await this.nft.delegate(owner.address);
-            expect(await this.nft.delegates(owner.address)).to.equal(owner.address);
-        });
+            const mintCallData = this.nft.interface.encodeFunctionData('mintAMD')
+            
 
-        it(`Gives you 1 vote after delegation from governor`, async function () {
-            const blockNumber = await provider.getBlockNumber() - 1;
-            expect(await this.governor.getVotes(owner.address, blockNumber)).to.equal(1);
-        });
+            await this.governor.propose(
+                [this.nft.address],
+                [3],
+                [mintCallData],
+                "Mint's an NFT to governor",
+            );
+            const [...events] = await this.governor.queryFilter("ProposalCreated");
+            this.proposalId = BigNumber.from(events[events.length - 1].args.proposalId);
 
-        it(`Gives you 1 vote after delegation from nft`, async function () {
-            const blockNumber = await provider.getBlockNumber() - 1;
-            expect(await this.governor.getVotes(owner.address, blockNumber)).to.equal(1);
+            // The state function should return 0 which means that the proposal is pending
+            expect(await this.governor.state(this.proposalId)).to.equal(0);
         });
-        */
+        it("Casts a vote on the proposal", async function () {
+            await newBlock(this.nft, addrs[4])
+
+            await this.governor.castVote(this.proposalId, 0);
+            let votes = await this.governor.proposalVotes(this.proposalId);
+            expect(votes.totalVotes.toNumber()).to.equal(1);
+        });
+        it("Casted a yes vote", async function () {
+            let votes = await this.governor.proposalVotes(this.proposalId);
+            expect(votes.yesVotes.toNumber()).to.equal(1);
+        });
+        it("Casts a no vote", async function () {
+
+            await this.governor.castVote(this.proposalId, 1);
+            let votes = await this.governor.proposalVotes(this.proposalId);
+            expect(votes.noVotes.toNumber()).to.equal(1);
+        })
+        it("Casts an abstain vote", async function () {
+            
+            
+            await this.governor.castVote(this.proposalId, 2);
+            
+
+            let votes = await this.governor.proposalVotes(this.proposalId);
+            expect(votes.abstainVotes.toNumber()).to.equal(1);
+        })
     });
 
     //////////////////////////////
     //  setRemainderDestination 
-    ////////////////////////////// 0x6352211e0000000000000000000000000000000000000000000000000000000000000003
+    ////////////////////////////// 
     /*
     describe("otherMethod", function () {
 
