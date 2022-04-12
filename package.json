@@ -20,7 +20,7 @@
   "description": "",
   "main": "index.js",
   "repository": "https://github.com/ava-labs/avalanche-smart-contract-quickstart",
-  "author": "Nervil <twitter.com/0xNervil",
+  "author": "Nervil <twitter.com/0xNervil>",
   "contributors": [],
   "license": "BSD-3-Clause",
   "scripts": {

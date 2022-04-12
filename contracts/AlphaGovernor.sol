@@ -31,7 +31,7 @@ contract AlphaGovernor is
 
     constructor(IVotes _token, TimelockController _timelock)
         Governor("AlphaGovernor")
-        GovernorSettings(1, 45818, 0)
+        GovernorSettings(0, 45818, 0)
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4)
         GovernorTimelockControl(_timelock)
