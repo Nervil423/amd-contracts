@@ -53,7 +53,7 @@ let newBlock = async function (nftcontract, signer, blocks) {
     
     console.log(await blockNum);
     for(let i = 0; i < blocks; i++) {
-        await nftcontract.connect(signer).mintAMD(owner.address, overrides);
+        await nftcontract.connect(signer).mintAMD(overrides);
     }
     console.log(await blockNum())
 }
@@ -175,7 +175,7 @@ describe("NFT", function () {
             value: ethers.utils.parseEther("2.5")
         }
 
-        await expect(this.nft.mintAMD(owner.address, overrides)).to.be.reverted;
+        await expect(this.nft.mintAMD(overrides)).to.be.reverted;
     });
 
     it('Mints an NFT to ur wallet for 3 AVAX', async function () {
@@ -183,7 +183,7 @@ describe("NFT", function () {
             value: ethers.utils.parseEther("3.0")
         }
 
-        await this.nft.mintAMD(owner.address, overrides);
+        await this.nft.mintAMD(overrides);
         expect(await this.nft.balanceOf(owner.address)).to.equal(1);
     });
 
@@ -237,7 +237,7 @@ describe("Delegating", function () {
 
         await this.nft.startMint();
         await this.nft.batchWhitelist(whitelistAddresses);
-        this.nft.mintAMD(owner.address, overrides);
+        this.nft.mintAMD(overrides);
 
     });
     it('NFT holder has 1 vote', async function () {
@@ -256,7 +256,7 @@ describe("Delegating", function () {
         let overrides = {
             value: ethers.utils.parseEther("3.0")
         }
-        await this.nft.connect(addr1).mintAMD(addr1.address, overrides);
+        await this.nft.connect(addr1).mintAMD(overrides);
         expect(await this.governor.getCurrentVotes(addr1.address)).to.equal(2);
     });
     it('Redelegating works', async function () {
@@ -299,7 +299,7 @@ describe("Proposals", function () {
 
         await this.nft.startMint();
         await this.nft.batchWhitelist(whitelistAddresses);
-        this.nft.mintAMD(owner.address, overrides);
+        this.nft.mintAMD(overrides);
 
     });
     /*
@@ -312,9 +312,7 @@ describe("Proposals", function () {
         overrides = {
             value: ethers.utils.parseEther("3.0")
         }
-        const mintCallData = this.nftABI.encodeFunctionData("mintAMD", [
-            owner.address
-        ]);
+        const mintCallData = this.nftABI.encodeFunctionData("mintAMD");
 
 
         await this.governor.propose(

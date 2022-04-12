@@ -61,19 +61,19 @@ contract NFT is ERC721, Ownable, ERC721Votes, INFT {
 
     // commented out unused variable
     // function awardItem(address player, string memory tokenURI)
-    function mintAMD(address minter) external payable override returns (uint16 tokenID) {
-        require(minter != address(0), "Cannot mint to the zero address");
+    function mintAMD() external payable override returns (uint16 tokenID) {
+        require(msg.sender != address(0), "Cannot mint to the zero address");
         require(msg.value >= MECHA_PRICE, "AVAX value sent is incorrect");
         require(isMintLive, "Mint is not active");
-        require(whitelisted[minter], "You are not whitelisted");
+        require(whitelisted[msg.sender], "You are not whitelisted");
         require(mintTime > block.timestamp, "mint is no longer active");
 
         _tokenIds.increment();
 
         uint16 newItemId = uint16(_tokenIds.current());
-        _mint(minter, newItemId);
-        emit MintedAMD(minter, newItemId);
-        delegate(minter);
+        _mint(msg.sender, newItemId);
+        emit MintedAMD(msg.sender, newItemId);
+        delegate(msg.sender);
         // _setTokenURI(newItemId, tokenURI);
         return newItemId;
     }
